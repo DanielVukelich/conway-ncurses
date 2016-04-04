@@ -26,3 +26,5 @@ $(BINARY): $(OBJS)
 
 clean:
 	rm -f $(BINDIR)$(BINARY) $(OBJS)
+
+$(shell mkdir -p $(BINDIR))
