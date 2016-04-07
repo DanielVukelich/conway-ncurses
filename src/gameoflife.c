@@ -6,25 +6,26 @@ typedef struct arg_t{
   char* infile;
   char* ruleset;
   int seed_rate;
+  int game_speed;
   bool widescreen;
   bool infinite;
   bool paused;
 } arg_data;
 
 void print_error(int err, char** argv);
-void ncurses_init(field_data* field, bool widescreen);
+void ncurses_init(field_data* field, bool widescreen, int speed);
 void draw_and_refresh(field_data field, bool widescreen);
 int get_opts(arg_data* args, int argc, char** argv);
 
 int main(int argc, char** argv){
 
-  arg_data args = {NULL, NULL, SEED_RATE, false, false, false};
+  arg_data args = {NULL, NULL, SEED_RATE, DEFAULT_SPEED, false, false, false};
   field_data field;  
   bool running = true;
   bool step = false;
   
   int err = get_opts(&args, argc, argv);
-  ncurses_init(&field, args.widescreen);
+  ncurses_init(&field, args.widescreen, args.game_speed);
   bool paused = args.paused;
 
   if(!err){
@@ -80,14 +81,14 @@ void draw_and_refresh(field_data field, bool widescreen){
   refresh();
 }
 
-void ncurses_init(field_data* field, bool widescreen){
+void ncurses_init(field_data* field, bool widescreen, int speed){
   initscr();
   raw();
   keypad(stdscr, true);
   noecho();
   curs_set(0);
   getmaxyx(stdscr, field->y, field->x);
-  timeout(250);
+  timeout(speed);
   if(!widescreen)
     field->x /= 2;
   return;
@@ -101,6 +102,7 @@ int get_opts(arg_data* args, int argc, char** argv){
     {"widescreen", no_argument, 0, 'w'},
     {"infinite", no_argument, 0, 'i'},
     {"pause", no_argument, 0, 'p'},
+    {"time", required_argument, 0, 't'},
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}
   };
@@ -108,7 +110,7 @@ int get_opts(arg_data* args, int argc, char** argv){
   int argres = 0;
   while(1){
 
-    argres = getopt_long(argc, argv, "f:s:r:whip", long_options, &option_index);
+    argres = getopt_long(argc, argv, "f:s:r:whipt:", long_options, &option_index);
 
     if(argres == -1)
       break;
@@ -116,6 +118,11 @@ int get_opts(arg_data* args, int argc, char** argv){
     switch(argres){
     case 'i':
       args->infinite = true;
+      break;
+    case 't':
+      args->game_speed = atoi(optarg);
+      if(args->game_speed < 1)
+	return 1;
       break;
     case 'h':
       return 1;
@@ -147,7 +154,7 @@ int get_opts(arg_data* args, int argc, char** argv){
 void print_error(int err, char** argv){
   switch(err){
   case 1:
-    printf("Usage:\n%s --file Life_1.05_file --seed seed_rate_number --rule ruleset_string --widescreen --infinite --pause\n", argv[0]);
+    printf("Usage:\n%s --file Life_1.05_file --seed seed_rate_number --rule ruleset_string --widescreen --infinite --time time_speed --pause\n", argv[0]);
     puts("To control the game, press 'q' to exit, space to pause, and 's' while paused to advance one generation");
     return;
   case -1:

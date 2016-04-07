@@ -15,6 +15,8 @@
 //The default rules for conway's game of life:  A live cell stays alive with 2 or 3 live 
 //neighbours, and a dead cell comes alive with 3 live neighbours
 #define DEFAULT_RULES "23/3"
+//The speed at which the simulation is run
+#define DEFAULT_SPEED 250
 
 typedef struct ruleset_t{
   int* born_rules;
