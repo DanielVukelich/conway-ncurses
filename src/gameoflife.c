@@ -10,6 +10,7 @@ typedef struct arg_t{
   bool widescreen;
   bool infinite;
   bool paused;
+  bool help;
 } arg_data;
 
 void print_error(int err, char** argv);
@@ -62,7 +63,10 @@ int main(int argc, char** argv){
  
   endwin();
   print_error(err, argv);
-  
+
+  if(args.help)
+    return 0;
+
   return 1;
 }
 
@@ -125,6 +129,7 @@ int get_opts(arg_data* args, int argc, char** argv){
 	return 1;
       break;
     case 'h':
+      args->help = true;
       return 1;
     case 'f':
       args->infile = optarg;
@@ -154,8 +159,8 @@ int get_opts(arg_data* args, int argc, char** argv){
 void print_error(int err, char** argv){
   switch(err){
   case 1:
-    printf("Usage:\n%s --file Life_1.05_file --seed seed_rate_number --rule ruleset_string --widescreen --infinite --time time_speed --pause\n", argv[0]);
-    puts("To control the game, press 'q' to exit, space to pause, and 's' while paused to advance one generation");
+    printf("\nUsage:\n %s [args]\n\nPossible arguments:\n --file, -f\t\tLife_1.05_file\n --seed, -s\t\tseed_rate_number\n --rule, -r\t\truleset_string\n --widescreen, -w\n --infinite, -i\n --time, -t\t\ttime_speed\n --pause, -p\n --help, -h\n", argv[0]);
+    puts("\nTo control the game, press 'q' to exit, space to pause, and 's' while paused to advance one generation.");
     return;
   case -1:
     puts("Could not find the specified file");
