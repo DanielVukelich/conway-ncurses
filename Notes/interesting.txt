@@ -1,3 +1,5 @@
 Interesting things:
 --seed 1 --rule 5/23
 Makes an interesting trippy corridor effect for the first several generations.  One 5/23 is one of the few rulesets that is interesting when the field starts off completely full
+--seed 30 --rule 123456/534
+Fills the field with long lines, almost like tetris blocks.  If you set the --infinite flag, you get interesting designs where expanding waves collide.
