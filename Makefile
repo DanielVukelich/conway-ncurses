@@ -11,7 +11,8 @@ BINDIR=build/
 
 all: debug
 
-debug: CFLAGS += -DDEBUG -g
+debug: CFLAGS += -DDEBUG -g -fsanitize=address -fsanitize=undefined
+debug: LDLIBS += -lubsan
 debug: $(BINARY)
 
 release: CFLAGS += -O3

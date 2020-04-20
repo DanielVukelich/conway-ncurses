@@ -1,6 +1,13 @@
+#ifdef DEBUG
+#include <sys/prctl.h>
+#include <sanitizer/asan_interface.h>
+#endif
+
 #include <ncurses.h>
 #include <getopt.h>
+
 #include "gamefield.h"
+#include "errcode.h"
 
 typedef struct arg_t{
   char* infile;
@@ -8,35 +15,43 @@ typedef struct arg_t{
   int seed_rate;
   int game_speed;
   bool widescreen;
-  bool infinite;
+  bool wrap_edges;
   bool paused;
   bool help;
 } arg_data;
 
 void print_error(int err, char** argv);
-void ncurses_init(field_data* field, bool widescreen, int speed);
+void ncurses_init(bool widescreen, int speed, int* x, int* y);
 void draw_and_refresh(field_data field, bool widescreen);
 int get_opts(arg_data* args, int argc, char** argv);
 
 int main(int argc, char** argv){
 
+#ifdef DEBUG
+    //When debug mode enabled, allow any process to attach
+    prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY);
+    //Write address sanitizer errors to log file
+    __sanitizer_set_report_path("asan.log");
+#endif
+
   arg_data args = {NULL, NULL, SEED_RATE, DEFAULT_SPEED, false, false, false};
-  field_data field;  
+  field_data field;
   bool running = true;
   bool step = false;
-  
+
   int err = get_opts(&args, argc, argv);
-  ncurses_init(&field, args.widescreen, args.game_speed);
+  int max_x, max_y;
+  ncurses_init(args.widescreen, args.game_speed, &max_x, &max_y);
   bool paused = args.paused;
 
   if(!err){
     if(args.infile)
-      err = init_field_file(&field, fopen(args.infile, "r"), args.infinite, args.ruleset);
+        err = init_field_file(&field, fopen(args.infile, "r"), max_x, max_y, args.wrap_edges, args.ruleset);
     else
-      err = init_field(&field, args.seed_rate, args.infinite, args.ruleset);
+        err = init_field(&field, max_x, max_y, args.seed_rate, args.wrap_edges, args.ruleset);
   }
 
-  if(!err){    
+  if(!err){
     unsigned int generations = 0;
     draw_and_refresh(field, args.widescreen);
 
@@ -57,24 +72,24 @@ int main(int argc, char** argv){
     clear_field(&field);
     printf("%i generation%s simulated\n", generations, (generations != 1) ? "s" : "");
 
-    return 0;
-    
+    return NO_ERR;
+
   }
- 
+
   endwin();
   print_error(err, argv);
 
   if(args.help)
-    return 0;
+    return NO_ERR;
 
-  return 1;
+  return EXIT_ERR;
 }
 
-void draw_and_refresh(field_data field, bool widescreen){  
-  for(unsigned int offset = 0; offset < (field.x * field.y); ++offset){
+void draw_and_refresh(field_data field, bool widescreen){
+  for(unsigned int offset = 0; offset < field.buff_len; ++offset){
     int cell = 32 | (get_primary_cell(field, offset) ? 0 : A_REVERSE);
-    unsigned int x = offset % field.x;
-    unsigned int y = (offset / field.x) % field.y;
+    unsigned int x = offset % field.size_x;
+    unsigned int y = (offset / field.size_x) % field.size_y;
     if(widescreen)
       mvaddch(y, x, cell);
     else{
@@ -85,17 +100,15 @@ void draw_and_refresh(field_data field, bool widescreen){
   refresh();
 }
 
-void ncurses_init(field_data* field, bool widescreen, int speed){
+void ncurses_init(bool widescreen, int speed, int* scr_x, int* scr_y){
   initscr();
   raw();
   keypad(stdscr, true);
   noecho();
   curs_set(0);
-  getmaxyx(stdscr, field->y, field->x);
+  *scr_x = widescreen ? getmaxx(stdscr) : getmaxx(stdscr) / 2;
+  *scr_y = getmaxy(stdscr);
   timeout(speed);
-  if(!widescreen)
-    field->x /= 2;
-  return;
 }
 
 int get_opts(arg_data* args, int argc, char** argv){
@@ -104,7 +117,7 @@ int get_opts(arg_data* args, int argc, char** argv){
     {"seed", required_argument, 0, 's'},
     {"rule", required_argument, 0, 'r'},
     {"widescreen", no_argument, 0, 'w'},
-    {"infinite", no_argument, 0, 'i'},
+    {"edge-wrap", no_argument, 0, 'e'},
     {"pause", no_argument, 0, 'p'},
     {"time", required_argument, 0, 't'},
     {"help", no_argument, 0, 'h'},
@@ -114,14 +127,14 @@ int get_opts(arg_data* args, int argc, char** argv){
   int argres = 0;
   while(1){
 
-    argres = getopt_long(argc, argv, "f:s:r:whipt:", long_options, &option_index);
+    argres = getopt_long(argc, argv, "f:s:r:whept:", long_options, &option_index);
 
     if(argres == -1)
       break;
 
     switch(argres){
-    case 'i':
-      args->infinite = true;
+    case 'e':
+      args->wrap_edges = true;
       break;
     case 't':
       args->game_speed = atoi(optarg);
@@ -149,41 +162,42 @@ int get_opts(arg_data* args, int argc, char** argv){
       args->paused = true;
       break;
     default:
-      return 1;
+      return PRINT_HELP;
     }
   }
 
-  return 0;
+  return NO_ERR;
 }
 
 void print_error(int err, char** argv){
   switch(err){
-  case 1:
-    printf("\nUsage:\n %s [args]\n\nPossible arguments:\n --file, -f\t\tLife_1.05_file\n --seed, -s\t\tseed_rate_number\n --rule, -r\t\truleset_string\n --widescreen, -w\n --infinite, -i\n --time, -t\t\ttime_speed\n --pause, -p\n --help, -h\n", argv[0]);
+  case PRINT_HELP:
+    printf("\nUsage:\n %s [args]\n\nPossible arguments:\n --file, -f\t\tLife_1.05_file\n --seed, -s\t\tseed_rate_number\n --rule, -r\t\truleset_string\n --widescreen, -w\n --edge-wrap, -e\n --time, -t\t\ttime_speed\n --pause, -p\n --help, -h\n", argv[0]);
     puts("\nTo control the game, press 'q' to exit, space to pause, and 's' while paused to advance one generation.");
     return;
-  case -1:
+  case FILE_NOT_FOUND:
     puts("Could not find the specified file");
     return;
-  case -2:
+  case FILE_LAYOUT_MALFORM:
     puts("Specified file had layout description line(s) with invalid format");
     return;
-  case -3:
+  case FILE_TAGS_MALFORM:
     puts("Specified file had improperly formatted tags");
     return;
-  case -4:
+  case FILE_TAG_UNSUPP:
     puts("Life 1.05 file used a currently unsupported tag");
     return;
-  case -5:
+  case FILE_FORMAT_UNEXP:
     puts("Specified file is not Life 1.05 format");
     return;
-  case -6:
+  case FILE_DUPE_ATTR:
     puts("Specified file had duplicate attribute tags");
     return;
-  case -7:
+  case RULE_PARSE_FAIL:
     puts("Specified ruleset is improperly formatted (check #R tag in file or the program arguments)");
     return;
+  case OUT_OF_MEM:
+      puts("Not enough memory");
+      return;
   }
 }
-
-
