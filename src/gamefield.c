@@ -127,7 +127,7 @@ int init_field(field_data *field, int width, int height, int seed_rate, bool edg
 
     if(parse_rules(field, rules)){
         clear_field(field);
-        return -7;
+        return RULE_PARSE_FAIL;
     }
     return NO_ERR;
 }
@@ -135,7 +135,7 @@ int init_field(field_data *field, int width, int height, int seed_rate, bool edg
 
 int init_field_file(field_data *field, FILE *fp, int width, int height, bool edge_wrap, char* rules){
     if(fp == NULL)
-        return -1;
+        return FILE_NOT_FOUND;
 
 
     enum errcode status = init_field(field, width, height, 0, edge_wrap, rules);
@@ -192,7 +192,7 @@ int init_field_file(field_data *field, FILE *fp, int width, int height, bool edg
             else if(inputbuffer[1] == 'N'){
                 if(readFileRules){
                     clear_field(field);
-                    return -6;
+                    return FILE_DUPE_ATTR;
                 }
                 if(readArgRules){
                     free(field->rules.born_rules);
