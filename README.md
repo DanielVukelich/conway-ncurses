@@ -18,5 +18,3 @@ The program supports the following optional command line arguments:
 
 ## Life 1.05
 This program can load files in the Life 1.05 file format.  Information about the Life 1.05 file format [can be found here.](http://conwaylife.com/wiki/Life_1.05)
-
-One minor thing to note is that while the Life 1.05 format calls for DOS style line endings, the program currently only supports UNIX line endings.

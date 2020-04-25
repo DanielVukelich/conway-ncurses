@@ -38,10 +38,9 @@ typedef struct field_data_t{
 
 int init_field(field_data* field, int width, int height, int seed_rate, bool edge_wrap, char* rules);
 int init_field_file(field_data* field, FILE* fp, int width, int height, bool edge_wrap, char* rules);
-int free_field(field_data* field);
+void free_field(field_data* field);
 int parse_rules(field_data* field, char* toparse);
 void update_and_swap_fields(field_data* field);
-void clear_field(field_data* field);
-bool get_primary_cell(field_data field, unsigned int offset);
+bool get_cell(field_data* field, unsigned int offset);
 
 #endif
