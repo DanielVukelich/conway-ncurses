@@ -86,7 +86,7 @@ int main(int argc, char** argv){
 }
 
 void draw_and_refresh(field_data field, bool widescreen){
-  for(unsigned int offset = 0; offset < field.buff_len; ++offset){
+  for(unsigned int offset = 0; offset < field.field_len; ++offset){
     int cell = 32 | (get_cell(&field, offset) ? 0 : A_REVERSE);
     unsigned int x = offset % field.size_x;
     unsigned int y = (offset / field.size_x) % field.size_y;

@@ -12,6 +12,8 @@ enum cell_status{
 const char LIVE_CELL = '*';
 const char DEAD_CELL = '.';
 
+char random_word(int seed_rate);
+unsigned int num_words_for_field(unsigned int field_len);
 void swap_buffers(field_data* field);
 int count_neighbours(field_data* field, unsigned int offset);
 bool apply_rules(field_data field, bool state, int neighbours);
@@ -81,7 +83,7 @@ unsigned int pattern_next_line(field_data* field, unsigned int pattern_cursor, u
 }
 
 void update_and_swap_fields(field_data* field){
-    for(unsigned int offset = 0; offset < field->buff_len; ++offset){
+    for(unsigned int offset = 0; offset < field->field_len; ++offset){
         unsigned int neigh = count_neighbours(field, offset);
         bool state = get_cell(field, offset);
         bool nextState = apply_rules(*field, state, neigh);
@@ -93,6 +95,8 @@ void update_and_swap_fields(field_data* field){
 }
 
 void free_field(field_data *field){
+    free_accessor(field->buffer_r);
+    free_accessor(field->buffer_w);
     free(field->buffer_r);
     free(field->buffer_w);
     free(field->rules.born_rules);
@@ -142,13 +146,11 @@ bool apply_rules(field_data field, bool state, int neighbours){
 
 void seed_field(field_data* field, int seed_rate){
     if(seed_rate){
-        for(unsigned int i = 0; i < field->buff_len; ++i){
-            field->buffer_r[i] = !(rand() % seed_rate);
+        for(unsigned int i = 0; i < field->field_len; ++i){
+            bool rand_val = (rand() % seed_rate == 0);
+            set_bit(field->buffer_r, i, rand_val);
         }
-    }else{
-        memset(field->buffer_r, false, field->buff_len);
     }
-    memset(field->buffer_w, false, field->buff_len);
 }
 
 int init_field(field_data *field, int width, int height, int seed_rate, bool edge_wrap, char* rules){
@@ -156,21 +158,26 @@ int init_field(field_data *field, int width, int height, int seed_rate, bool edg
     if(!rules)
         rules = DEFAULT_RULES;
 
-    unsigned int buff_len = width * height;
-    size_t buff_size = sizeof(_Bool) * buff_len;
-
-    field->buff_len = buff_len;
+    field->field_len = width * height;
     field->edge_wrap = edge_wrap;
     field->size_x = width;
     field->size_y = height;
 
-    field->buffer_r = malloc(buff_size);
+    field->buffer_r = malloc(sizeof(bit_accessor));
     if(field->buffer_r == NULL)
         return OUT_OF_MEM;
 
-    field->buffer_w = malloc(buff_size);
+    field->buffer_w = malloc(sizeof(bit_accessor));
     if(field->buffer_w == NULL)
         return OUT_OF_MEM;
+
+    int status = init_accessor(field->buffer_r, field->field_len);
+    if(status != NO_ERR)
+        return status;
+
+    status = init_accessor(field->buffer_w, field->field_len);
+    if(status != NO_ERR)
+        return status;
 
     seed_field(field, seed_rate);
 
@@ -282,8 +289,8 @@ int init_field_file(field_data *field, FILE *fp, int width, int height, bool edg
             int y_off = atoi(start2);
             pattern_cursor = relative_offset(field, universal_center, x_off, y_off);
             pattern_newline_offset = pattern_cursor % field->size_x;
-        }else if(pattern_cursor < field->buff_len){
-            for(char* p = inputbuffer; (*p != '\0') && (pattern_cursor < field->buff_len); ++p){
+        }else if(pattern_cursor < field->field_len){
+            for(char* p = inputbuffer; (*p != '\0') && (pattern_cursor < field->field_len); ++p){
                 //Life 1.05 file format says to ignore empty lines
                 //If p == inputbuffer and it's a line ending, then the line is empty and we do not increment the cursor.
                 if(is_line_end(p)){
@@ -313,22 +320,22 @@ int init_field_file(field_data *field, FILE *fp, int width, int height, bool edg
 }
 
 bool get_cell(field_data* field, unsigned int offset){
-    if(offset >= field->buff_len){
+    if(offset >= field->field_len){
         return false;
     }
-    return field->buffer_r[offset];
+    return get_bit(field->buffer_r, offset);
 }
 
 inline void swap_buffers(field_data* field){
-    bool* temp = field->buffer_r;
+    bit_accessor* temp = field->buffer_r;
     field->buffer_r = field->buffer_w;
     field->buffer_w = temp;
 }
 
 inline void set_cell(field_data* field, unsigned int offset, bool val){
-    field->buffer_w[offset] = val;
+    set_bit(field->buffer_w, offset, val);
 }
 
 inline void toggle_buffer_cell(field_data* field, unsigned int offset){
-    field->buffer_w[offset] = !field->buffer_r[offset];
+    toggle_bit(field->buffer_w, offset);
 }

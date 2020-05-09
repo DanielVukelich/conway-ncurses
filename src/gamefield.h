@@ -8,6 +8,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "bit_accessor.h"
+
 //The lower the seed rate, the more cells will be seeded as "alive" when the program starts
 #define SEED_RATE 2
 //As per the Life 1.05 file specification, a line is 80 chars long + terminator char
@@ -26,10 +28,10 @@ typedef struct ruleset_t{
 } ruleset;
 
 typedef struct field_data_t{
-    bool* buffer_r;
-    bool* buffer_w;
+    bit_accessor* buffer_r;
+    bit_accessor* buffer_w;
 
-    unsigned int buff_len;
+    unsigned int field_len;
     unsigned int size_x;
     unsigned int size_y;
     bool edge_wrap;
