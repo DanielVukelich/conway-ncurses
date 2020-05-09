@@ -1,4 +1,4 @@
-kCC=gcc
+CC=gcc
 
 CFLAGS=-std=c11 -Werror -Wall
 
