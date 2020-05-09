@@ -6,7 +6,7 @@
 
 const unsigned int WORD_SIZE = sizeof(uint32_t);
 const unsigned int WORD_BITS = WORD_SIZE * 8;
-const unsigned int SUBWORD_MASK_LEN = 6;  //log_2(word_size - 1)
+const unsigned int SUBWORD_MASK_LEN = 6;  //log_2(word_size)
 const unsigned int SUBWORD_MASK = 0b11111; //SUBWORD_MASK_LEN '1' bits
 
 unsigned int get_word_index(unsigned int bit_index){
