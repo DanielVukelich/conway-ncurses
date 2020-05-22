@@ -3,6 +3,7 @@
 
 enum errcode{
 	NO_ERR = 0,
+        ARG_ERR,
         EXIT_ERR,
         PRINT_HELP,
         FILE_NOT_FOUND,
