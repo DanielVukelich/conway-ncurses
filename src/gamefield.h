@@ -5,10 +5,10 @@
 #include <time.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
 
 #include "bit_accessor.h"
+#include "rules.h"
 
 //The lower the seed rate, the more cells will be seeded as "alive" when the program starts
 #define SEED_RATE 2
@@ -20,13 +20,6 @@
 //The speed at which the simulation is run
 #define DEFAULT_SPEED 250
 
-typedef struct ruleset_t{
-    int* born_rules;
-    int* keepalive_rules;
-    int numBornRules;
-    int numKeepaliveRules;
-} ruleset;
-
 typedef struct field_data_t{
     bit_accessor* buffer_r;
     bit_accessor* buffer_w;
@@ -35,13 +28,12 @@ typedef struct field_data_t{
     unsigned int size_x;
     unsigned int size_y;
     bool edge_wrap;
-    ruleset rules;
+    rule_set rules;
 } field_data;
 
 int init_field(field_data* field, int width, int height, int seed_rate, bool edge_wrap, char* rules);
 int init_field_file(field_data* field, FILE* fp, int width, int height, bool edge_wrap, char* rules);
 void free_field(field_data* field);
-int parse_rules(field_data* field, char* toparse);
 void update_and_swap_fields(field_data* field);
 bool get_cell(field_data* field, unsigned int offset);
 

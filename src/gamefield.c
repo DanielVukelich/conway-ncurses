@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <ctype.h>
 
 #include "gamefield.h"
 #include "errcode.h"
@@ -16,7 +17,6 @@ char random_word(int seed_rate);
 unsigned int num_words_for_field(unsigned int field_len);
 void swap_buffers(field_data* field);
 int count_neighbours(field_data* field, unsigned int offset);
-bool apply_rules(field_data field, bool state, int neighbours);
 void set_cell(field_data* field, unsigned int offset, bool val);
 void toggle_cell(field_data* field, unsigned int offset);
 unsigned int relative_offset(field_data* field, unsigned int offset, int rel_x, int rel_y);
@@ -86,7 +86,7 @@ void update_and_swap_fields(field_data* field){
     for(unsigned int offset = 0; offset < field->field_len; ++offset){
         unsigned int neigh = count_neighbours(field, offset);
         bool state = get_cell(field, offset);
-        bool nextState = apply_rules(*field, state, neigh);
+        bool nextState = next_cell_state(&field->rules, state, neigh);
         set_cell(field, offset, nextState);
     }
 
@@ -99,49 +99,6 @@ void free_field(field_data *field){
     free_accessor(field->buffer_w);
     free(field->buffer_r);
     free(field->buffer_w);
-    free(field->rules.born_rules);
-    free(field->rules.keepalive_rules);
-}
-
-int parse_rules(field_data* field, char* toparse){
-    char *start1, *end1, *start2, *end2;
-    for(start1 = toparse; isspace(*start1); ++start1);
-    for(end1 = start1; *end1 != '/'; ++end1);
-    int nKr = end1 - start1;
-    for(start2 = end1 + 1; isspace(*start2); ++start2);
-    for(end2 = start2; !isspace(*end2) && *end2 != '\0'; ++end2);
-    int nBr = end2 - start2;
-    field->rules.numBornRules = nBr;
-    field->rules.numKeepaliveRules = nKr;
-
-    field->rules.born_rules = malloc(sizeof(int) * nBr);
-    field->rules.keepalive_rules = malloc(sizeof(int) * nKr);
-    for(int i = 0; i < nBr; ++i){
-        int toadd = start2[i] - '0';
-        if(toadd >= 0 && toadd <= 8)
-            field->rules.born_rules[i] = toadd;
-        else
-            return RULE_PARSE_FAIL;
-    }
-    for(int i = 0; i < nKr; ++i){
-        int toadd = start1[i] - '0';
-        if(toadd >= 0 && toadd <= 8)
-            field->rules.keepalive_rules[i] = toadd;
-        else
-            return RULE_PARSE_FAIL;
-    }
-    return NO_ERR;
-}
-
-bool apply_rules(field_data field, bool state, int neighbours){
-    int* applied_rules = state ? field.rules.keepalive_rules : field.rules.born_rules;
-    int num_rules = state ? field.rules.numKeepaliveRules : field.rules.numBornRules;
-
-    for(int i = 0; i < num_rules; ++i){
-        if(neighbours == applied_rules[i])
-            return true;
-    }
-    return false;
 }
 
 void seed_field(field_data* field, int seed_rate){
@@ -181,7 +138,7 @@ int init_field(field_data *field, int width, int height, int seed_rate, bool edg
 
     seed_field(field, seed_rate);
 
-    if(parse_rules(field, rules)){
+    if(parse_rules(&field->rules, rules)){
         free_field(field);
         return RULE_PARSE_FAIL;
     }
@@ -243,7 +200,7 @@ int init_field_file(field_data *field, FILE *fp, int width, int height, bool edg
     bool readArgRules = false;
 
     if(rules){
-        if(parse_rules(field, rules)){
+        if(parse_rules(&field->rules, rules)){
             free_field(field);
             return RULE_PARSE_FAIL;
         }
@@ -256,10 +213,7 @@ int init_field_file(field_data *field, FILE *fp, int width, int height, bool edg
                 free_field(field);
                 return FILE_DUPE_ATTR;
             }
-            if(readArgRules){
-                free(field->rules.born_rules);
-            }
-            if(parse_rules(field, inputbuffer + 2)){
+            if(parse_rules(&field->rules, inputbuffer + 2)){
                 free_field(field);
                 return RULE_PARSE_FAIL;
             }
@@ -269,10 +223,7 @@ int init_field_file(field_data *field, FILE *fp, int width, int height, bool edg
                 free_field(field);
                 return FILE_DUPE_ATTR;
             }
-            if(readArgRules){
-                free(field->rules.born_rules);
-            }
-            parse_rules(field, DEFAULT_RULES);
+            parse_rules(&field->rules, DEFAULT_RULES);
             readFileRules = true;
         }else if(has_prefix(inputbuffer, "#D")){
             continue;
@@ -313,7 +264,7 @@ int init_field_file(field_data *field, FILE *fp, int width, int height, bool edg
 
     //If no ruleset has been defined in either the file or the command line args, use the default
     if(!readFileRules && !readArgRules)
-        parse_rules(field, DEFAULT_RULES);
+        parse_rules(&field->rules, DEFAULT_RULES);
 
     swap_buffers(field);
     return NO_ERR;

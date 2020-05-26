@@ -14,7 +14,7 @@ INC=$(SRCDIR)/
 TESTOBJ=$(SRCDIR)/test.o
 BINOBJ=$(SRCDIR)/gameoflife.o
 
-OBJS=$(SRCDIR)/gamefield.o $(SRCDIR)/bit_accessor.o
+OBJS=$(SRCDIR)/gamefield.o $(SRCDIR)/bit_accessor.o $(SRCDIR)/rules.o
 BINARY=lifegame
 TEST=testsuite
 BINDIR=build/
